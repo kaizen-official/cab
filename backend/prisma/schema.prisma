@@ -1,0 +1,185 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+}
+
+// ─── User ────────────────────────────────────────────────────────────────────
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+model User {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  email           String   @unique
+  passwordHash    String
+  firstName       String
+  lastName        String
+  phone           String?
+  gender          Gender?
+  avatarUrl       String?
+  bio             String?
+  college         String?
+  collegeVerified Boolean  @default(false)
+  emailVerified   Boolean  @default(false)
+  isActive        Boolean  @default(true)
+  refreshToken    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  ridesCreated    Ride[]         @relation("RideCreator")
+  bookings        Booking[]      @relation("BookingPassenger")
+  reviewsGiven    Review[]       @relation("ReviewAuthor")
+  reviewsReceived Review[]       @relation("ReviewTarget")
+  notifications   Notification[]
+
+  @@index([college])
+}
+
+// ─── OTP ─────────────────────────────────────────────────────────────────────
+
+enum OTPPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+model OTP {
+  id        String     @id @default(auto()) @map("_id") @db.ObjectId
+  email     String
+  code      String
+  purpose   OTPPurpose
+  expiresAt DateTime
+  used      Boolean    @default(false)
+  createdAt DateTime   @default(now())
+
+  @@index([email, purpose])
+  @@index([expiresAt])
+}
+
+// ─── Ride ────────────────────────────────────────────────────────────────────
+
+enum RideStatus {
+  ACTIVE
+  FULL
+  DEPARTED
+  COMPLETED
+  CANCELLED
+}
+
+model Ride {
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  creatorId String @db.ObjectId
+  creator   User   @relation("RideCreator", fields: [creatorId], references: [id])
+
+  fromCity    String
+  fromAddress String
+  fromLat     Float?
+  fromLng     Float?
+
+  toCity    String
+  toAddress String
+  toLat     Float?
+  toLng     Float?
+
+  departureTime    DateTime
+  estimatedArrival DateTime?
+
+  totalSeats     Int
+  availableSeats Int
+  pricePerSeat   Int
+
+  vehicle        String?
+  vehicleNumber  String?
+  notes          String?
+  allowedGenders Gender[]
+
+  status    RideStatus @default(ACTIVE)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  bookings Booking[]
+
+  @@index([fromCity, toCity, departureTime])
+  @@index([creatorId])
+  @@index([status, departureTime])
+  @@index([departureTime])
+}
+
+// ─── Booking ─────────────────────────────────────────────────────────────────
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+  CANCELLED
+  COMPLETED
+}
+
+model Booking {
+  id          String @id @default(auto()) @map("_id") @db.ObjectId
+  rideId      String @db.ObjectId
+  ride        Ride   @relation(fields: [rideId], references: [id])
+  passengerId String @db.ObjectId
+  passenger   User   @relation("BookingPassenger", fields: [passengerId], references: [id])
+
+  seatsBooked Int           @default(1)
+  status      BookingStatus @default(PENDING)
+  message     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([rideId, passengerId])
+  @@index([passengerId])
+  @@index([rideId, status])
+}
+
+// ─── Review ──────────────────────────────────────────────────────────────────
+
+model Review {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  authorId  String   @db.ObjectId
+  author    User     @relation("ReviewAuthor", fields: [authorId], references: [id])
+  targetId  String   @db.ObjectId
+  target    User     @relation("ReviewTarget", fields: [targetId], references: [id])
+  rideId    String   @db.ObjectId
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  @@unique([authorId, rideId])
+  @@index([targetId])
+}
+
+// ─── Notification ────────────────────────────────────────────────────────────
+
+enum NotificationType {
+  BOOKING_REQUEST
+  BOOKING_CONFIRMED
+  BOOKING_REJECTED
+  BOOKING_CANCELLED
+  RIDE_CANCELLED
+  RIDE_REMINDER
+  REVIEW_RECEIVED
+  SYSTEM
+}
+
+model Notification {
+  id        String           @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String           @db.ObjectId
+  user      User             @relation(fields: [userId], references: [id])
+  type      NotificationType
+  title     String
+  body      String
+  metadata  Json?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, read])
+  @@index([createdAt])
+}

@@ -1,0 +1,28 @@
+{
+  "name": "backend",
+  "version": "0.1.0",
+  "description": "",
+  "license": "ISC",
+  "author": "Kaizen",
+  "type": "commonjs",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js",
+    "db:generate": "npx prisma generate",
+    "db:push": "npx prisma db push",
+    "db:studio": "npx prisma studio"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.1",
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "mongodb": "^7.1.0",
+    "node-cron": "^4.2.1",
+    "nodemon": "^3.1.13",
+    "prisma": "^6.19.1"
+  }
+}
