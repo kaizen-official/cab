@@ -18,7 +18,16 @@ const config = Object.freeze({
   },
 
   cors: {
-    origin: process.env.CORS_ORIGIN,
+    origin: process.env.CORS_ORIGIN || true,
+  },
+
+  smtp: {
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT, 10) || 587,
+    secure: process.env.SMTP_SECURE === "true",
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+    from: process.env.MAIL_FROM,
   },
 
   pagination: {

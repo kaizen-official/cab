@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const { prisma } = require("../../config/database");
 const { config } = require("../../config");
 const { generateOTP, otpExpiresAt } = require("../../utils/otp");
+const { sendOTP } = require("../../utils/email");
 const ApiError = require("../../utils/ApiError");
 
 class AuthService {
@@ -20,9 +21,7 @@ class AuthService {
     });
 
     const otp = await this._createOTP(email, "EMAIL_VERIFICATION");
-
-    // In production, send this via email service
-    console.log(`[auth] verification OTP for ${email}: ${otp.code}`);
+    await sendOTP(email, otp.code, "EMAIL_VERIFICATION");
 
     const tokens = this._generateTokens(user.id);
     await this._storeRefreshToken(user.id, tokens.refreshToken);
@@ -80,7 +79,7 @@ class AuthService {
     if (user.emailVerified) throw ApiError.badRequest("Email already verified");
 
     const otp = await this._createOTP(email, "EMAIL_VERIFICATION");
-    console.log(`[auth] resent verification OTP for ${email}: ${otp.code}`);
+    await sendOTP(email, otp.code, "EMAIL_VERIFICATION");
 
     return { sent: true };
   }
@@ -93,7 +92,7 @@ class AuthService {
     }
 
     const otp = await this._createOTP(email, "PASSWORD_RESET");
-    console.log(`[auth] password reset OTP for ${email}: ${otp.code}`);
+    await sendOTP(email, otp.code, "PASSWORD_RESET");
 
     return { sent: true };
   }
