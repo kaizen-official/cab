@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 type RequestOptions = {
   method?: string;
@@ -63,7 +63,16 @@ class ApiClient {
       config.body = JSON.stringify(body);
     }
 
-    let res = await fetch(this.buildUrl(path, params), config);
+    let res: Response;
+    try {
+      res = await fetch(this.buildUrl(path, params), config);
+    } catch (err) {
+      throw new ApiError(
+        "Could not reach server. Check that NEXT_PUBLIC_API_URL points to your backend.",
+        0,
+        undefined
+      );
+    }
 
     if (res.status === 401 && token) {
       const refreshed = await this.tryRefresh();
@@ -76,10 +85,23 @@ class ApiClient {
       }
     }
 
-    const data = await res.json();
+    let data: { message?: string; data?: T; errors?: unknown };
+    try {
+      data = await res.json();
+    } catch {
+      throw new ApiError(
+        res.ok ? "Invalid response from server" : `Request failed (${res.status}). Check backend logs.`,
+        res.status,
+        undefined
+      );
+    }
 
     if (!res.ok) {
-      throw new ApiError(data.message || "Something went wrong", res.status, data.errors);
+      throw new ApiError(
+        data.message || "Something went wrong",
+        res.status,
+        data.errors as { field: string; message: string }[] | undefined
+      );
     }
 
     return data.data as T;
