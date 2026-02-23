@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import api, { type Ride, type PaginatedResponse } from "../../lib/api";
 import Input from "../../components/ui/input";
 import Button from "../../components/ui/button";
-import Select from "../../components/ui/select";
+import DatePicker from "../../components/ui/date-picker";
+import Dropdown from "../../components/ui/dropdown";
 import Badge from "../../components/ui/badge";
 import Spinner from "../../components/ui/spinner";
 import Empty from "../../components/ui/empty";
@@ -27,14 +29,21 @@ const statusColors: Record<string, string> = {
   CANCELLED: "red",
 };
 
-export default function SearchPage() {
-  const [fromCity, setFromCity] = useState("");
-  const [toCity, setToCity] = useState("");
-  const [date, setDate] = useState("");
+function SearchContent() {
+  const searchParams = useSearchParams();
+  const [fromCity, setFromCity] = useState(searchParams.get("fromCity") || "");
+  const [toCity, setToCity] = useState(searchParams.get("toCity") || "");
+  const [date, setDate] = useState(searchParams.get("date") || "");
   const [sortBy, setSortBy] = useState("departure_asc");
   const [page, setPage] = useState(1);
   const [result, setResult] = useState<PaginatedResponse<Ride> | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setFromCity(searchParams.get("fromCity") || "");
+    setToCity(searchParams.get("toCity") || "");
+    setDate(searchParams.get("date") || "");
+  }, [searchParams]);
 
   const search = useCallback(async (p = 1) => {
     setLoading(true);
@@ -76,8 +85,8 @@ export default function SearchPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <Input placeholder="From city" value={fromCity} onChange={(e) => setFromCity(e.target.value)} />
           <Input placeholder="To city" value={toCity} onChange={(e) => setToCity(e.target.value)} />
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          <Select options={sortOptions} value={sortBy} onChange={(e) => setSortBy(e.target.value)} />
+          <DatePicker value={date} onChange={setDate} placeholder="Any date" />
+          <Dropdown options={sortOptions} value={sortBy} onChange={setSortBy} placeholder="Sort by" />
         </div>
         <div className="flex justify-end mt-3">
           <Button onClick={() => search(1)} size="sm">Search</Button>
@@ -147,5 +156,13 @@ export default function SearchPage() {
         </>
       )}
     </div>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={<div className="py-12" />}>
+      <SearchContent />
+    </Suspense>
   );
 }

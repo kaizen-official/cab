@@ -1,16 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../../context/auth";
 import Input from "../../components/ui/input";
 import Button from "../../components/ui/button";
 import { ApiError } from "../../lib/api";
 
-export default function LoginPage() {
+function LoginForm() {
   const { login } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -23,7 +24,8 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      router.push("/dashboard/search");
+      const next = searchParams.get("next");
+      router.push(next && next.startsWith("/") ? next : "/dashboard/search");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong");
     } finally {
@@ -72,5 +74,13 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center" />}>
+      <LoginForm />
+    </Suspense>
   );
 }

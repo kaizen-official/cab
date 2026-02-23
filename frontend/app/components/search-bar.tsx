@@ -1,14 +1,37 @@
 "use client";
 
 import { useState } from "react";
-import { MapPin, Calendar, Users, ArrowRight } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { MapPin, Users, ArrowRight } from "lucide-react";
+import { useAuth } from "../context/auth";
+import DatePicker from "./ui/date-picker";
+import Stepper from "./ui/stepper";
 
 export default function SearchBar() {
+  const router = useRouter();
+  const { user } = useAuth();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  const [date, setDate] = useState("");
+  const [seats, setSeats] = useState(1);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (from.trim()) params.set("fromCity", from.trim());
+    if (to.trim()) params.set("toCity", to.trim());
+    if (date) params.set("date", date);
+    const query = params.toString();
+    const target = `/dashboard/search${query ? `?${query}` : ""}`;
+    if (user) {
+      router.push(target);
+    } else {
+      router.push(`/auth/login?next=${encodeURIComponent(target)}`);
+    }
+  }
 
   return (
-    <div id="search" className="w-full max-w-[560px] mx-auto">
+    <form id="search" onSubmit={handleSubmit} className="w-full max-w-[560px] mx-auto">
       <div className="glass rounded-[16px] p-1.5">
         <div className="flex flex-col md:flex-row items-stretch gap-0">
           <div className="flex-1 flex items-center gap-2.5 px-4 py-3 rounded-[12px] hover:bg-white/3 transition-colors group">
@@ -45,33 +68,29 @@ export default function SearchBar() {
           <div className="hidden md:block w-px bg-border-subtle self-stretch my-2" />
           <div className="md:hidden h-px bg-border-subtle mx-4" />
 
-          <div className="flex items-center gap-2.5 px-4 py-3 rounded-[12px] hover:bg-white/3 transition-colors group cursor-pointer">
-            <Calendar
-              size={16}
-              className="text-text-tertiary group-hover:text-text-secondary transition-colors shrink-0"
-            />
-            <span className="text-[14px] text-text-tertiary">Today</span>
+          <div className="flex items-center gap-2.5 px-4 py-3 rounded-[12px] hover:bg-white/3 transition-colors group">
+            <DatePicker value={date} onChange={setDate} placeholder="Pick date" />
           </div>
 
           <div className="hidden md:block w-px bg-border-subtle self-stretch my-2" />
           <div className="md:hidden h-px bg-border-subtle mx-4" />
 
-          <div className="flex items-center gap-2.5 px-4 py-3 rounded-[12px] hover:bg-white/3 transition-colors group cursor-pointer">
+          <div className="flex items-center gap-2.5 px-4 py-3 rounded-[12px] hover:bg-white/3 transition-colors group">
             <Users
               size={16}
               className="text-text-tertiary group-hover:text-text-secondary transition-colors shrink-0"
             />
-            <span className="text-[14px] text-text-tertiary">1</span>
+            <Stepper value={seats} onChange={setSeats} min={1} max={10} />
           </div>
 
           <div className="p-1">
-            <button className="w-full md:w-auto h-full px-4 py-3 md:py-0 bg-accent-mint text-[#040404] rounded-[12px] hover:bg-accent-mint/90 transition-colors flex items-center justify-center gap-2 text-[14px] font-medium">
+            <button type="submit" className="w-full md:w-auto h-full px-4 py-3 md:py-0 bg-accent-mint text-[#040404] rounded-[12px] hover:bg-accent-mint/90 transition-colors flex items-center justify-center gap-2 text-[14px] font-medium cursor-pointer">
               <span className="md:hidden">Search</span>
               <ArrowRight size={16} strokeWidth={2.5} />
             </button>
           </div>
         </div>
       </div>
-    </div>
+    </form>
   );
 }

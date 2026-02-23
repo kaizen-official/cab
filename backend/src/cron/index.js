@@ -1,8 +1,13 @@
 const cron = require("node-cron");
+const { config } = require("../config");
 const { prisma } = require("../config/database");
 const notificationService = require("../modules/notification/notification.service");
 
 function registerCronJobs() {
+  if (config.isDev && process.env.CRON_ENABLED !== "true") {
+    console.log("[cron] disabled in development (set CRON_ENABLED=true to enable)");
+    return;
+  }
   // Every 15 minutes: auto-expire past rides that are still ACTIVE
   cron.schedule("*/15 * * * *", async () => {
     try {

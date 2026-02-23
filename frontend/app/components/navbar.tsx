@@ -19,7 +19,7 @@ export default function Navbar() {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50">
       <div className="mx-auto max-w-[1200px] px-5 pt-4">
-        <div className="glass rounded-[14px] px-5 py-3 flex items-center justify-between">
+        <div className="glass rounded-[14px] px-5 py-3 flex items-center justify-between backdrop-blur-lg">
           <Link href="/" className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-lg bg-accent-mint flex items-center justify-center">
               <span className="text-[#040404] text-sm font-bold tracking-tight leading-none">
@@ -36,7 +36,7 @@ export default function Navbar() {
               <a
                 key={link.label}
                 href={link.href}
-                className="px-3.5 py-2 text-[13px] text-text-secondary hover:text-text-primary transition-colors rounded-lg hover:bg-white/4"
+                className="px-3.5 py-2 text-[15px] text-text-secondary hover:text-text-primary transition-colors rounded-lg hover:bg-white/4"
               >
                 {link.label}
               </a>
