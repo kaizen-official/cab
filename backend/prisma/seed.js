@@ -234,39 +234,42 @@ async function main() {
 
   // ─── Bookings (250 new bookings) ───────────────────────────────────────────
   console.log("[seed] creating bookings...");
-  const rideMap = new Map();
-  for (const r of allRides) {
-    if (!rideMap.has(r.id)) rideMap.set(r.id, []);
-    rideMap.get(r.id).push(r);
-  }
-
   const bookingStatuses = ["PENDING", "CONFIRMED", "CONFIRMED", "REJECTED", "CANCELLED", "COMPLETED"];
   const NUM_BOOKINGS = 250;
-  let bookingsCreated = 0;
+  const bookingsToCreate = [];
+  const seen = new Set();
 
-  for (let i = 0; i < NUM_BOOKINGS; i++) {
+  for (let i = 0; i < NUM_BOOKINGS * 2; i++) {
+    if (bookingsToCreate.length >= NUM_BOOKINGS) break;
     const ride = pick(allRides);
     const passenger = pick(allUsers);
-    if (passenger.id === ride.creatorId) continue; // can't book own ride
+    if (passenger.id === ride.creatorId) continue;
+    const key = `${ride.id}-${passenger.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
 
     const status = pick(bookingStatuses);
-    const seatsBooked = Math.min(1 + Math.floor(Math.random() * 2), ride.availableSeats || 1);
-    if (seatsBooked < 1) continue;
+    const seatsBooked = Math.min(1 + Math.floor(Math.random() * 2), Math.max(1, ride.availableSeats || 1));
 
-    try {
-      await prisma.booking.create({
-        data: {
-          rideId: ride.id,
-          passengerId: passenger.id,
-          seatsBooked,
-          status,
-          message: faker.datatype.boolean(0.3) ? faker.lorem.sentence() : null,
-        },
-      });
-      bookingsCreated++;
-    } catch {
-      // unique constraint (rideId, passengerId) - skip
-    }
+    bookingsToCreate.push({
+      rideId: ride.id,
+      passengerId: passenger.id,
+      seatsBooked,
+      status,
+      message: faker.datatype.boolean(0.3) ? faker.lorem.sentence() : null,
+    });
+  }
+
+  let bookingsCreated = 0;
+  const BATCH = 50;
+  for (let i = 0; i < bookingsToCreate.length; i += BATCH) {
+    const batch = bookingsToCreate.slice(i, i + BATCH);
+    const results = await Promise.allSettled(
+      batch.map((b) =>
+        prisma.booking.create({ data: b })
+      )
+    );
+    bookingsCreated += results.filter((r) => r.status === "fulfilled").length;
   }
   console.log(`[seed] bookings created: ${bookingsCreated}`);
 
