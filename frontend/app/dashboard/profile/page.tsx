@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import api, { type UserProfile, ApiError } from "../../lib/api";
 import { useAuth } from "../../context/auth";
 import Input from "../../components/ui/input";
@@ -9,6 +10,7 @@ import Select from "../../components/ui/select";
 import Button from "../../components/ui/button";
 import Badge from "../../components/ui/badge";
 import Spinner from "../../components/ui/spinner";
+import { User, GraduationCap, Calendar } from "lucide-react";
 
 const genderOptions = [
   { value: "", label: "Prefer not to say" },
@@ -25,7 +27,13 @@ export default function ProfilePage() {
   const [savingCollege, setSavingCollege] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [form, setForm] = useState({ firstName: "", lastName: "", phone: "", gender: "", bio: "" });
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    phone: "",
+    gender: "",
+    bio: "",
+  });
   const [college, setCollege] = useState("");
 
   useEffect(() => {
@@ -100,52 +108,159 @@ export default function ProfilePage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-[20px] font-semibold text-text-primary tracking-[-0.02em]">Profile</h1>
-        <p className="text-[13px] text-text-secondary mt-1">Manage your account details</p>
+        <h1 className="text-[24px] font-black text-text-primary tracking-[-0.03em]">
+          Profile
+        </h1>
+        <p className="text-[13px] text-text-secondary mt-1">
+          Manage your account details
+        </p>
       </div>
 
-      {message && <div className="px-3.5 py-2.5 text-[13px] text-accent-mint bg-accent-mint-muted border border-accent-mint/20 rounded-[10px] mb-4">{message}</div>}
-      {error && <div className="px-3.5 py-2.5 text-[13px] text-red-400 bg-red-500/10 border border-red-500/20 rounded-[10px] mb-4">{error}</div>}
+      {message && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="px-4 py-3 text-[13px] text-accent-mint bg-accent-mint-muted border border-accent-mint/20 rounded-xl mb-4 font-medium"
+        >
+          {message}
+        </motion.div>
+      )}
+      {error && (
+        <div className="px-4 py-3 text-[13px] text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl mb-4">
+          {error}
+        </div>
+      )}
 
-      <div className="max-w-[520px] space-y-5">
-        <div className="glass rounded-[14px] p-5">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 rounded-full bg-bg-surface flex items-center justify-center text-[16px] text-text-secondary font-medium">
-              {profile.firstName[0]}{profile.lastName[0]}
+      <div className="max-w-[540px] space-y-4">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="glass rounded-2xl p-5"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-accent-mint/20 to-accent-cyan/20 flex items-center justify-center text-[18px] text-text-primary font-black border border-border-subtle">
+              {profile.firstName[0]}
+              {profile.lastName[0]}
             </div>
-            <div>
-              <div className="text-[15px] text-text-primary font-medium">{profile.firstName} {profile.lastName}</div>
-              <div className="text-[12px] text-text-tertiary">{profile.email}</div>
+            <div className="flex-1">
+              <div className="text-[16px] text-text-primary font-bold">
+                {profile.firstName} {profile.lastName}
+              </div>
+              <div className="text-[12px] text-text-tertiary mt-0.5">
+                {profile.email}
+              </div>
             </div>
-            <div className="ml-auto flex gap-1.5">
+            <div className="flex gap-1.5 flex-wrap justify-end">
               {profile.emailVerified && <Badge color="mint">Verified</Badge>}
-              {profile.collegeVerified && <Badge color="cyan">College verified</Badge>}
+              {profile.collegeVerified && (
+                <Badge color="cyan">College</Badge>
+              )}
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        <form onSubmit={handleSave} className="glass rounded-[14px] p-5 space-y-3">
-          <h3 className="text-[14px] font-medium text-text-primary mb-1">Personal info</h3>
-          <div className="grid grid-cols-2 gap-3">
-            <Input label="First name" value={form.firstName} onChange={(e) => update("firstName", e.target.value)} required />
-            <Input label="Last name" value={form.lastName} onChange={(e) => update("lastName", e.target.value)} required />
+        <motion.form
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.05 }}
+          onSubmit={handleSave}
+          className="glass rounded-2xl p-5 space-y-3"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <User size={14} className="text-accent-mint" />
+            <span className="text-[11px] font-bold text-text-tertiary uppercase tracking-widest">
+              Personal info
+            </span>
           </div>
-          <Input label="Phone" placeholder="+91 9876543210" value={form.phone} onChange={(e) => update("phone", e.target.value)} />
-          <Select label="Gender" options={genderOptions} value={form.gender} onChange={(e) => update("gender", e.target.value)} />
-          <Textarea label="Bio" placeholder="Tell others about yourself..." value={form.bio} onChange={(e) => update("bio", e.target.value)} rows={3} />
-          <Button type="submit" loading={saving} size="md">Save changes</Button>
-        </form>
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="First name"
+              value={form.firstName}
+              onChange={(e) => update("firstName", e.target.value)}
+              required
+            />
+            <Input
+              label="Last name"
+              value={form.lastName}
+              onChange={(e) => update("lastName", e.target.value)}
+              required
+            />
+          </div>
+          <Input
+            label="Phone"
+            placeholder="+91 9876543210"
+            value={form.phone}
+            onChange={(e) => update("phone", e.target.value)}
+          />
+          <Select
+            label="Gender"
+            options={genderOptions}
+            value={form.gender}
+            onChange={(e) => update("gender", e.target.value)}
+          />
+          <Textarea
+            label="Bio"
+            placeholder="Tell others about yourself..."
+            value={form.bio}
+            onChange={(e) => update("bio", e.target.value)}
+            rows={3}
+          />
+          <Button type="submit" loading={saving} size="md">
+            Save changes
+          </Button>
+        </motion.form>
 
-        <div className="glass rounded-[14px] p-5 space-y-3">
-          <h3 className="text-[14px] font-medium text-text-primary mb-1">College</h3>
-          <Input label="College name" placeholder="IIT Delhi" value={college} onChange={(e) => setCollege(e.target.value)} />
-          <Button variant="secondary" loading={savingCollege} size="md" onClick={handleCollegeSave}>Update college</Button>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+          className="glass rounded-2xl p-5 space-y-3"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <GraduationCap size={14} className="text-accent-cyan" />
+            <span className="text-[11px] font-bold text-text-tertiary uppercase tracking-widest">
+              College
+            </span>
+          </div>
+          <Input
+            label="College name"
+            placeholder="IIT Delhi"
+            value={college}
+            onChange={(e) => setCollege(e.target.value)}
+          />
+          <Button
+            variant="secondary"
+            loading={savingCollege}
+            size="md"
+            onClick={handleCollegeSave}
+          >
+            Update college
+          </Button>
+        </motion.div>
 
-        <div className="glass rounded-[14px] p-5">
-          <h3 className="text-[14px] font-medium text-text-primary mb-1">Account</h3>
-          <p className="text-[12px] text-text-tertiary mb-3">Member since {new Date(profile.createdAt).toLocaleDateString("en-IN", { month: "long", year: "numeric" })}</p>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.15 }}
+          className="glass rounded-2xl p-5"
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <Calendar size={14} className="text-text-tertiary" />
+            <span className="text-[11px] font-bold text-text-tertiary uppercase tracking-widest">
+              Account
+            </span>
+          </div>
+          <p className="text-[13px] text-text-secondary">
+            Member since{" "}
+            <span className="text-text-primary font-semibold">
+              {new Date(profile.createdAt).toLocaleDateString("en-IN", {
+                month: "long",
+                year: "numeric",
+              })}
+            </span>
+          </p>
+        </motion.div>
       </div>
     </div>
   );
