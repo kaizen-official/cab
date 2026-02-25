@@ -10,6 +10,7 @@ import Badge from "../../../components/ui/badge";
 import Spinner from "../../../components/ui/spinner";
 import Input from "../../../components/ui/input";
 import Textarea from "../../../components/ui/textarea";
+import Image from "next/image";
 import {
   MapPin,
   Clock,
@@ -19,6 +20,7 @@ import {
   IndianRupee,
   ArrowLeft,
   Navigation,
+  Phone,
 } from "lucide-react";
 
 const statusColors: Record<string, string> = {
@@ -30,6 +32,12 @@ const statusColors: Record<string, string> = {
   PENDING: "yellow",
   CONFIRMED: "mint",
   REJECTED: "red",
+};
+
+const urgencyColors: Record<string, string> = {
+  Open: "mint",
+  "Almost Full": "yellow",
+  Full: "red",
 };
 
 export default function RideDetailPage() {
@@ -139,7 +147,14 @@ export default function RideDetailPage() {
               {formatTime(ride.departureTime)}
             </p>
           </div>
-          <Badge color={statusColors[ride.status]}>{ride.status}</Badge>
+          <div className="flex items-center gap-2">
+            {ride.urgencyLabel && (
+              <Badge color={urgencyColors[ride.urgencyLabel] || "gray"}>
+                {ride.urgencyLabel}
+              </Badge>
+            )}
+            <Badge color={statusColors[ride.status]}>{ride.status}</Badge>
+          </div>
         </div>
       </div>
 
@@ -239,6 +254,25 @@ export default function RideDetailPage() {
               </div>
             </div>
 
+            {typeof ride.confirmedCount === "number" && (
+              <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border-subtle">
+                <div className="flex items-center gap-1.5">
+                  <Users size={12} className="text-text-tertiary" />
+                  <span className="text-[12px] text-text-secondary font-medium">
+                    {ride.confirmedCount} confirmed
+                  </span>
+                </div>
+                {ride.confirmedCount > 0 && (
+                  <span className="text-[12px] text-text-secondary">
+                    Fare split:{" "}
+                    <span className="text-accent-mint font-bold">
+                      &#8377;{Math.round(ride.pricePerSeat * ride.totalSeats / (ride.confirmedCount + 1))}/person
+                    </span>
+                  </span>
+                )}
+              </div>
+            )}
+
             {ride.notes && (
               <div className="mt-5 pt-4 border-t border-border-subtle">
                 <div className="flex items-center gap-1.5 mb-2">
@@ -266,10 +300,13 @@ export default function RideDetailPage() {
                     className="flex items-center justify-between py-3 px-4 rounded-xl bg-white/2 border border-border-subtle"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-bg-surface flex items-center justify-center text-[12px] text-text-secondary font-bold">
-                        {b.passenger.firstName[0]}
-                        {b.passenger.lastName[0]}
-                      </div>
+                      {b.passenger.avatarUrl ? (
+                        <Image src={b.passenger.avatarUrl} alt="" width={36} height={36} className="rounded-xl object-cover shrink-0" />
+                      ) : (
+                        <div className="w-9 h-9 rounded-xl bg-bg-surface flex items-center justify-center text-[12px] text-text-secondary font-bold">
+                          {b.passenger.firstName[0]}{b.passenger.lastName[0]}
+                        </div>
+                      )}
                       <div>
                         <div className="text-[13px] text-text-primary font-semibold">
                           {b.passenger.firstName} {b.passenger.lastName}
@@ -315,10 +352,13 @@ export default function RideDetailPage() {
               Driver
             </h3>
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-xl bg-bg-surface flex items-center justify-center text-[14px] text-text-secondary font-bold">
-                {ride.creator.firstName[0]}
-                {ride.creator.lastName[0]}
-              </div>
+              {ride.creator.avatarUrl ? (
+                <Image src={ride.creator.avatarUrl} alt="" width={44} height={44} className="rounded-xl object-cover shrink-0" />
+              ) : (
+                <div className="w-11 h-11 rounded-xl bg-bg-surface flex items-center justify-center text-[14px] text-text-secondary font-bold">
+                  {ride.creator.firstName[0]}{ride.creator.lastName[0]}
+                </div>
+              )}
               <div>
                 <div className="text-[14px] text-text-primary font-bold">
                   {ride.creator.firstName} {ride.creator.lastName}
@@ -328,6 +368,18 @@ export default function RideDetailPage() {
                 </div>
               </div>
             </div>
+
+            {ride.creator.whatsappNumber && myBooking?.status === "CONFIRMED" && (
+              <a
+                href={`https://wa.me/${ride.creator.whatsappNumber.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`Hi, I want to join your cab for ${ride.toCity} at ${formatTime(ride.departureTime)}.`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-[#25D366]/15 border border-[#25D366]/30 text-[#25D366] text-[13px] font-semibold hover:bg-[#25D366]/25 transition-colors"
+              >
+                <Phone size={14} />
+                Chat on WhatsApp
+              </a>
+            )}
           </div>
 
           {isOwner ? (

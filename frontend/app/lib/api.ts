@@ -172,7 +172,10 @@ class ApiClient {
     return this.request<UserProfile>("/users/me");
   }
 
-  updateProfile(body: Partial<{ firstName: string; lastName: string; phone: string; gender: string; bio: string }>) {
+  updateProfile(body: Partial<{
+    firstName: string; lastName: string; phone: string; gender: string; bio: string;
+    whatsappNumber: string; program: string; academicYear: string; whatsappVisible: boolean;
+  }>) {
     return this.request<UserProfile>("/users/me", { method: "PATCH", body });
   }
 
@@ -184,7 +187,48 @@ class ApiClient {
     return this.request<PublicProfile>(`/users/${id}`);
   }
 
+  // ── Uploads ──
+
+  async uploadFile<T = unknown>(path: string, file: File): Promise<T> {
+    const token = this.getToken();
+    const form = new FormData();
+    form.append("file", file);
+
+    let res = await fetch(this.buildUrl(path), {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+
+    if (res.status === 401 && token) {
+      const refreshed = await this.tryRefresh();
+      if (refreshed) {
+        res = await fetch(this.buildUrl(path), {
+          method: "POST",
+          headers: { Authorization: `Bearer ${this.getToken()}` },
+          body: form,
+        });
+      }
+    }
+
+    const data = await res.json();
+    if (!res.ok) throw new ApiError(data.message || "Upload failed", res.status, data.errors);
+    return data.data as T;
+  }
+
+  uploadAvatar(file: File) {
+    return this.uploadFile<{ id: string; avatarUrl: string }>("/uploads/avatar", file);
+  }
+
+  uploadStudentId(file: File) {
+    return this.uploadFile<{ id: string; studentIdUrl: string; studentIdStatus: string }>("/uploads/student-id", file);
+  }
+
   // ── Rides ──
+
+  getSuggestions(params?: { fromCity?: string; toCity?: string }) {
+    return this.request<Ride[]>("/rides/suggestions", { params: params as Record<string, string> });
+  }
 
   searchRides(params: RideSearchParams) {
     return this.request<PaginatedResponse<Ride>>("/rides/search", { params: params as Record<string, string> });
@@ -300,12 +344,18 @@ export type User = {
   collegeVerified?: boolean;
   gender?: string | null;
   isActive?: boolean;
+  avatarUrl?: string | null;
 };
 
 export type UserProfile = User & {
   phone?: string | null;
-  avatarUrl?: string | null;
   bio?: string | null;
+  whatsappNumber?: string | null;
+  whatsappVisible?: boolean;
+  program?: string | null;
+  academicYear?: string | null;
+  studentIdUrl?: string | null;
+  studentIdStatus?: string;
   createdAt: string;
 };
 
@@ -329,6 +379,8 @@ export type RideCreator = {
   avatarUrl?: string | null;
   college?: string | null;
   collegeVerified?: boolean;
+  whatsappNumber?: string | null;
+  phone?: string | null;
 };
 
 export type Ride = {
@@ -347,6 +399,8 @@ export type Ride = {
   notes?: string | null;
   allowedGenders: string[];
   status: string;
+  urgencyLabel?: string;
+  confirmedCount?: number;
   createdAt: string;
   creator: RideCreator;
 };

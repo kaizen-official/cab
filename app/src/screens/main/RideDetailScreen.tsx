@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
+  Linking,
+  Image,
 } from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -30,6 +32,12 @@ const statusBadgeColor: Record<string, 'mint' | 'yellow' | 'cyan' | 'gray' | 're
   PENDING: 'yellow',
   CONFIRMED: 'mint',
   REJECTED: 'red',
+};
+
+const urgencyBadgeColor: Record<string, 'mint' | 'yellow' | 'red' | 'gray'> = {
+  Open: 'mint',
+  'Almost Full': 'yellow',
+  Full: 'red',
 };
 
 function formatTime(dt: string) {
@@ -136,7 +144,12 @@ export default function RideDetailScreen({route, navigation}: Props) {
             </Text>
             <Text style={s.departTime}>{formatTime(ride.departureTime)}</Text>
           </View>
-          <Badge color={statusBadgeColor[ride.status] || 'gray'} label={ride.status} />
+          <View style={s.badgeRow}>
+            {ride.urgencyLabel && (
+              <Badge color={urgencyBadgeColor[ride.urgencyLabel] || 'gray'} label={ride.urgencyLabel} />
+            )}
+            <Badge color={statusBadgeColor[ride.status] || 'gray'} label={ride.status} />
+          </View>
         </View>
 
         {!!error && (
@@ -192,6 +205,21 @@ export default function RideDetailScreen({route, navigation}: Props) {
             </View>
           </View>
 
+          {typeof ride.confirmedCount === 'number' && (
+            <View style={s.confirmedRow}>
+              <Ionicons name="people-outline" size={13} color={colors.textTertiary} />
+              <Text style={s.confirmedText}>{ride.confirmedCount} confirmed</Text>
+              {ride.confirmedCount > 0 && (
+                <Text style={s.fareText}>
+                  Fare split:{' '}
+                  <Text style={s.fareAmount}>
+                    ₹{Math.round(ride.pricePerSeat * ride.totalSeats / (ride.confirmedCount + 1))}/person
+                  </Text>
+                </Text>
+              )}
+            </View>
+          )}
+
           {ride.notes && (
             <View style={s.notesBox}>
               <View style={s.notesHeader}>
@@ -209,12 +237,16 @@ export default function RideDetailScreen({route, navigation}: Props) {
             <Text style={s.cardTitle}>Passengers</Text>
             {ride.bookings.map(b => (
               <View key={b.id} style={s.passengerRow}>
-                <View style={s.avatar}>
-                  <Text style={s.avatarText}>
-                    {b.passenger.firstName[0]}
-                    {b.passenger.lastName[0]}
-                  </Text>
-                </View>
+                {b.passenger.avatarUrl ? (
+                  <Image source={{uri: b.passenger.avatarUrl}} style={s.avatar} />
+                ) : (
+                  <View style={s.avatar}>
+                    <Text style={s.avatarText}>
+                      {b.passenger.firstName[0]}
+                      {b.passenger.lastName[0]}
+                    </Text>
+                  </View>
+                )}
                 <View style={s.passengerInfo}>
                   <Text style={s.passengerName}>
                     {b.passenger.firstName} {b.passenger.lastName}
@@ -256,12 +288,16 @@ export default function RideDetailScreen({route, navigation}: Props) {
         <View style={s.card}>
           <Text style={s.sectionLabel}>Driver</Text>
           <View style={s.driverRow}>
-            <View style={s.avatar}>
-              <Text style={s.avatarText}>
-                {ride.creator.firstName[0]}
-                {ride.creator.lastName[0]}
-              </Text>
-            </View>
+            {ride.creator.avatarUrl ? (
+              <Image source={{uri: ride.creator.avatarUrl}} style={s.driverAvatar} />
+            ) : (
+              <View style={s.avatar}>
+                <Text style={s.avatarText}>
+                  {ride.creator.firstName[0]}
+                  {ride.creator.lastName[0]}
+                </Text>
+              </View>
+            )}
             <View>
               <Text style={s.driverName}>
                 {ride.creator.firstName} {ride.creator.lastName}
@@ -271,6 +307,19 @@ export default function RideDetailScreen({route, navigation}: Props) {
               </Text>
             </View>
           </View>
+          {ride.creator.whatsappNumber && myBooking?.status === 'CONFIRMED' && (
+            <TouchableOpacity
+              style={s.whatsappBtn}
+              activeOpacity={0.8}
+              onPress={() => {
+                const num = ride.creator.whatsappNumber!.replace(/[^0-9]/g, '');
+                const msg = encodeURIComponent(`Hi, I want to join your cab for ${ride.toCity} at ${formatTime(ride.departureTime)}.`);
+                Linking.openURL(`https://wa.me/${num}?text=${msg}`);
+              }}>
+              <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
+              <Text style={s.whatsappText}>Chat on WhatsApp</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Actions */}
@@ -614,5 +663,54 @@ const s = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: fontSize.md,
     fontWeight: font.medium,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  confirmedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSubtle,
+  },
+  confirmedText: {
+    color: colors.textSecondary,
+    fontSize: fontSize.sm,
+    fontWeight: font.medium,
+  },
+  fareText: {
+    color: colors.textSecondary,
+    fontSize: fontSize.sm,
+  },
+  fareAmount: {
+    color: colors.accentMint,
+    fontWeight: font.bold,
+  },
+  driverAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.md,
+  },
+  whatsappBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    marginTop: 14,
+    borderRadius: radii.md,
+    backgroundColor: 'rgba(37,211,102,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(37,211,102,0.3)',
+  },
+  whatsappText: {
+    color: '#25D366',
+    fontSize: fontSize.md,
+    fontWeight: font.semibold,
   },
 });

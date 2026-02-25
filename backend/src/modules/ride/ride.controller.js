@@ -13,7 +13,7 @@ exports.search = asyncHandler(async (req, res) => {
 });
 
 exports.getById = asyncHandler(async (req, res) => {
-  const ride = await rideService.getById(req.params.id);
+  const ride = await rideService.getById(req.params.id, req.user?.id);
   ApiResponse.ok(ride).send(res);
 });
 
@@ -40,4 +40,9 @@ exports.markDeparted = asyncHandler(async (req, res) => {
 exports.markCompleted = asyncHandler(async (req, res) => {
   await rideService.markCompleted(req.params.id, req.user.id);
   ApiResponse.ok(null, "Ride completed").send(res);
+});
+
+exports.suggestions = asyncHandler(async (req, res) => {
+  const rides = await rideService.suggest(req.user?.id, req.query);
+  ApiResponse.ok(rides).send(res);
 });

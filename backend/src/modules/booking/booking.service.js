@@ -31,6 +31,11 @@ const BOOKING_SELECT = {
 
 class BookingService {
   async requestBooking(passengerId, { rideId, seatsBooked = 1, message }) {
+    const requester = await prisma.user.findUnique({ where: { id: passengerId }, select: { emailVerified: true } });
+    if (!requester?.emailVerified) {
+      throw ApiError.forbidden("You must verify your email before booking a ride");
+    }
+
     const ride = await prisma.ride.findUnique({ where: { id: rideId } });
     if (!ride) throw ApiError.notFound("Ride not found");
     if (ride.creatorId === passengerId) {

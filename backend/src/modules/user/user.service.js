@@ -9,7 +9,10 @@ const PUBLIC_USER_SELECT = {
   bio: true,
   college: true,
   collegeVerified: true,
+  program: true,
+  academicYear: true,
   gender: true,
+  studentIdStatus: true,
   createdAt: true,
 };
 
@@ -17,6 +20,9 @@ const PRIVATE_USER_SELECT = {
   ...PUBLIC_USER_SELECT,
   email: true,
   phone: true,
+  whatsappNumber: true,
+  whatsappVisible: true,
+  studentIdUrl: true,
   emailVerified: true,
 };
 
@@ -42,7 +48,10 @@ class UserService {
   }
 
   async updateProfile(userId, data) {
-    const allowed = ["firstName", "lastName", "phone", "gender", "bio", "avatarUrl"];
+    const allowed = [
+      "firstName", "lastName", "phone", "gender", "bio", "avatarUrl",
+      "whatsappNumber", "program", "academicYear", "whatsappVisible",
+    ];
     const updateData = {};
     for (const key of allowed) {
       if (data[key] !== undefined) {

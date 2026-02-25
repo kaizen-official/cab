@@ -36,8 +36,30 @@ const RIDE_SELECT = {
   },
 };
 
+function enrichRide(ride) {
+  const seats = ride.availableSeats;
+  let urgencyLabel = "Open";
+  if (seats === 0) urgencyLabel = "Full";
+  else if (seats <= 2) urgencyLabel = "Almost Full";
+
+  const confirmedCount = ride.bookings
+    ? ride.bookings.filter((b) => b.status === "CONFIRMED").length
+    : 0;
+
+  return { ...ride, urgencyLabel, confirmedCount };
+}
+
+function enrichRides(rides) {
+  return rides.map(enrichRide);
+}
+
 class RideService {
   async create(userId, data) {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { emailVerified: true } });
+    if (!user?.emailVerified) {
+      throw ApiError.forbidden("You must verify your email before creating a ride");
+    }
+
     const departureTime = new Date(data.departureTime);
     if (departureTime <= new Date()) {
       throw ApiError.badRequest("Departure time must be in the future");
@@ -103,7 +125,10 @@ class RideService {
     const [rides, total] = await Promise.all([
       prisma.ride.findMany({
         where,
-        select: RIDE_SELECT,
+        select: {
+          ...RIDE_SELECT,
+          bookings: { where: { status: "CONFIRMED" }, select: { id: true, status: true } },
+        },
         orderBy,
         skip,
         take: limit,
@@ -111,14 +136,28 @@ class RideService {
       prisma.ride.count({ where }),
     ]);
 
-    return paginatedResponse(rides, total, { page, limit });
+    const enriched = enrichRides(rides).map(({ bookings, ...r }) => r);
+    return paginatedResponse(enriched, total, { page, limit });
   }
 
-  async getById(rideId) {
+  async getById(rideId, requestingUserId) {
     const ride = await prisma.ride.findUnique({
       where: { id: rideId },
       select: {
         ...RIDE_SELECT,
+        creator: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            avatarUrl: true,
+            college: true,
+            collegeVerified: true,
+            whatsappNumber: true,
+            whatsappVisible: true,
+            phone: true,
+          },
+        },
         bookings: {
           where: { status: { in: ["CONFIRMED", "PENDING"] } },
           select: {
@@ -134,7 +173,21 @@ class RideService {
     });
 
     if (!ride) throw ApiError.notFound("Ride not found");
-    return ride;
+
+    const enriched = enrichRide(ride);
+
+    const isOwner = requestingUserId && ride.creator.id === requestingUserId;
+    const hasConfirmedBooking = requestingUserId && ride.bookings.some(
+      (b) => b.passenger.id === requestingUserId && b.status === "CONFIRMED"
+    );
+    const canSeeContact = isOwner || hasConfirmedBooking;
+
+    if (!canSeeContact || !ride.creator.whatsappVisible) {
+      delete enriched.creator.whatsappNumber;
+      delete enriched.creator.phone;
+    }
+
+    return enriched;
   }
 
   async getByCreator(userId, query) {
@@ -148,7 +201,10 @@ class RideService {
     const [rides, total] = await Promise.all([
       prisma.ride.findMany({
         where,
-        select: RIDE_SELECT,
+        select: {
+          ...RIDE_SELECT,
+          bookings: { where: { status: "CONFIRMED" }, select: { id: true, status: true } },
+        },
         orderBy: { departureTime: "desc" },
         skip,
         take: limit,
@@ -156,7 +212,8 @@ class RideService {
       prisma.ride.count({ where }),
     ]);
 
-    return paginatedResponse(rides, total, { page, limit });
+    const enriched = enrichRides(rides).map(({ bookings, ...r }) => r);
+    return paginatedResponse(enriched, total, { page, limit });
   }
 
   async update(rideId, userId, data) {
@@ -299,6 +356,63 @@ class RideService {
         data: { status: "COMPLETED" },
       });
     });
+  }
+
+  async suggest(userId, query) {
+    const timeWindowMins = parseInt(query.timeWindowMins, 10) || 45;
+    const now = new Date();
+    const windowStart = new Date(now.getTime() - timeWindowMins * 60000);
+    const windowEnd = new Date(now.getTime() + 24 * 60 * 60000);
+
+    const baseWhere = {
+      status: "ACTIVE",
+      departureTime: { gte: windowStart, lte: windowEnd },
+      creatorId: { not: userId },
+      availableSeats: { gte: 1 },
+    };
+
+    if (query.fromCity) {
+      baseWhere.fromCity = { contains: query.fromCity, mode: "insensitive" };
+    }
+    if (query.toCity) {
+      baseWhere.toCity = { contains: query.toCity, mode: "insensitive" };
+    }
+
+    const suggestSelect = {
+      ...RIDE_SELECT,
+      bookings: { where: { status: "CONFIRMED" }, select: { id: true, status: true } },
+    };
+
+    let rides = await prisma.ride.findMany({
+      where: baseWhere,
+      select: suggestSelect,
+      orderBy: { departureTime: "asc" },
+      take: 6,
+    });
+
+    if (rides.length === 0 && userId) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { college: true },
+      });
+
+      if (user?.college) {
+        rides = await prisma.ride.findMany({
+          where: {
+            status: "ACTIVE",
+            departureTime: { gte: now },
+            creatorId: { not: userId },
+            availableSeats: { gte: 1 },
+            creator: { college: { equals: user.college, mode: "insensitive" } },
+          },
+          select: suggestSelect,
+          orderBy: { departureTime: "asc" },
+          take: 6,
+        });
+      }
+    }
+
+    return enrichRides(rides).map(({ bookings, ...r }) => r);
   }
 
   // ── Private helpers ──

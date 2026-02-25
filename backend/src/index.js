@@ -12,6 +12,7 @@ const rideRoutes = require("./modules/ride/ride.routes");
 const bookingRoutes = require("./modules/booking/booking.routes");
 const reviewRoutes = require("./modules/review/review.routes");
 const notificationRoutes = require("./modules/notification/notification.routes");
+const uploadRoutes = require("./modules/upload/upload.routes");
 
 validateEnv();
 
@@ -34,6 +35,7 @@ app.use("/api/rides", rideRoutes);
 app.use("/api/bookings", bookingRoutes);
 app.use("/api/reviews", reviewRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/uploads", uploadRoutes);
 
 // ── 404 handler ──
 app.use((_req, res) => {

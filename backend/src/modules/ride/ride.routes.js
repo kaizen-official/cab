@@ -7,6 +7,8 @@ const router = Router();
 
 router.get("/search", optionalAuth, controller.search);
 
+router.get("/suggestions", authenticate, controller.suggestions);
+
 router.get("/mine", authenticate, controller.getMyRides);
 
 router.get("/:id", optionalAuth, controller.getById);

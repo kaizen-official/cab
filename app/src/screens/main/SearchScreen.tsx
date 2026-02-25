@@ -6,11 +6,14 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
+  ScrollView,
+  Image,
 } from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import api, {Ride, PaginatedResponse} from '../../lib/api';
+import {useAuth} from '../../context/auth';
 import {colors, radii, fontSize, font, spacing, glass} from '../../lib/theme';
 import Input from '../../components/ui/Input';
 import Badge from '../../components/ui/Badge';
@@ -27,6 +30,12 @@ const statusBadgeColor: Record<string, 'mint' | 'yellow' | 'cyan' | 'gray' | 're
   DEPARTED: 'cyan',
   COMPLETED: 'gray',
   CANCELLED: 'red',
+};
+
+const urgencyBadgeColor: Record<string, 'mint' | 'yellow' | 'red' | 'gray'> = {
+  Open: 'mint',
+  'Almost Full': 'yellow',
+  Full: 'red',
 };
 
 const sortOptions = [
@@ -47,6 +56,7 @@ function formatTime(dt: string) {
 }
 
 export default function SearchScreen({navigation}: Props) {
+  const {user} = useAuth();
   const [fromCity, setFromCity] = useState('');
   const [toCity, setToCity] = useState('');
   const [sortBy, setSortBy] = useState('departure_asc');
@@ -55,6 +65,12 @@ export default function SearchScreen({navigation}: Props) {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
+  const [suggestions, setSuggestions] = useState<Ride[]>([]);
+  const [universityOnly, setUniversityOnly] = useState(false);
+
+  useEffect(() => {
+    api.getSuggestions({}).then(setSuggestions).catch(() => {});
+  }, []);
 
   const search = useCallback(
     async (p = 1, isRefresh = false) => {
@@ -70,6 +86,7 @@ export default function SearchScreen({navigation}: Props) {
           sortBy,
           page: String(p),
           limit: '12',
+          college: universityOnly && user?.college ? user.college : undefined,
         });
         setResult(data);
         setPage(p);
@@ -77,7 +94,7 @@ export default function SearchScreen({navigation}: Props) {
       setLoading(false);
       setRefreshing(false);
     },
-    [fromCity, toCity, sortBy],
+    [fromCity, toCity, sortBy, universityOnly, user?.college],
   );
 
   useEffect(() => {
@@ -115,8 +132,11 @@ export default function SearchScreen({navigation}: Props) {
           <Text style={s.meta}>{item.creator.firstName}</Text>
         </View>
         <View style={s.cardRight}>
-          <Badge color={statusBadgeColor[item.status] || 'gray'} label={item.status} />
-          <Text style={s.seatsLeft}>{item.availableSeats} left</Text>
+          {item.urgencyLabel && (
+            <Badge color={urgencyBadgeColor[item.urgencyLabel] || 'gray'} label={item.urgencyLabel} />
+          )}
+          <Ionicons name="people-outline" size={11} color={colors.textTertiary} />
+          <Text style={s.seatsLeft}>{item.availableSeats}/{item.totalSeats}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -130,6 +150,50 @@ export default function SearchScreen({navigation}: Props) {
         <Text style={s.heading}>Search rides</Text>
         <Text style={s.subtitle}>Find students heading your way</Text>
       </View>
+
+      {suggestions.length > 0 && (
+        <View style={s.suggestSection}>
+          <View style={s.suggestHeader}>
+            <Ionicons name="sparkles-outline" size={14} color={colors.accentMint} />
+            <Text style={s.suggestTitle}>Suggested for you</Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.suggestList}>
+            {suggestions.map(ride => (
+              <TouchableOpacity
+                key={ride.id}
+                style={s.suggestCard}
+                activeOpacity={0.8}
+                onPress={() => navigation.navigate('RideDetail', {rideId: ride.id})}>
+                <View style={s.suggestRoute}>
+                  <View style={[s.dot, {backgroundColor: colors.accentMint}]} />
+                  <Text style={s.suggestCity} numberOfLines={1}>{ride.fromCity}</Text>
+                  <Ionicons name="arrow-forward" size={10} color={colors.textTertiary} />
+                  <View style={[s.dot, {backgroundColor: colors.accentCyan}]} />
+                  <Text style={s.suggestCity} numberOfLines={1}>{ride.toCity}</Text>
+                </View>
+                <View style={s.suggestBottom}>
+                  <View style={s.metaItem}>
+                    <Ionicons name="time-outline" size={10} color={colors.textTertiary} />
+                    <Text style={s.suggestMeta}>{formatTime(ride.departureTime)}</Text>
+                  </View>
+                  <Text style={s.suggestPrice}>₹{ride.pricePerSeat}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {user?.college && (
+        <View style={s.toggleRow}>
+          <TouchableOpacity
+            onPress={() => setUniversityOnly(!universityOnly)}
+            style={[s.uniChip, universityOnly && s.uniChipActive]}>
+            <Ionicons name="school-outline" size={12} color={universityOnly ? colors.accentCyan : colors.textTertiary} />
+            <Text style={[s.uniChipText, universityOnly && s.uniChipTextActive]}>My University</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {showFilters && (
         <View style={s.filterBox}>
@@ -365,5 +429,85 @@ const s = StyleSheet.create({
     color: colors.textTertiary,
     fontSize: fontSize.sm,
     fontWeight: font.medium,
+  },
+  suggestSection: {
+    marginBottom: 12,
+  },
+  suggestHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.lg,
+    marginBottom: 8,
+  },
+  suggestTitle: {
+    color: colors.textTertiary,
+    fontSize: fontSize.xs,
+    fontWeight: font.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  suggestList: {
+    paddingHorizontal: spacing.lg,
+    gap: 10,
+  },
+  suggestCard: {
+    ...glass,
+    borderRadius: radii.xl,
+    padding: 14,
+    width: 230,
+  },
+  suggestRoute: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  suggestCity: {
+    color: colors.textPrimary,
+    fontSize: fontSize.md,
+    fontWeight: font.semibold,
+    maxWidth: 80,
+  },
+  suggestBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  suggestMeta: {
+    color: colors.textSecondary,
+    fontSize: fontSize.xs,
+  },
+  suggestPrice: {
+    color: colors.accentMint,
+    fontSize: fontSize.lg,
+    fontWeight: font.black,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    paddingHorizontal: spacing.lg,
+    marginBottom: 8,
+  },
+  uniChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  uniChipActive: {
+    backgroundColor: 'rgba(100,210,255,0.1)',
+    borderColor: 'rgba(100,210,255,0.3)',
+  },
+  uniChipText: {
+    color: colors.textTertiary,
+    fontSize: fontSize.xs,
+    fontWeight: font.semibold,
+  },
+  uniChipTextActive: {
+    color: colors.accentCyan,
   },
 });

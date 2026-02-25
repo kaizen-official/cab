@@ -39,6 +39,11 @@ const config = Object.freeze({
     windowMs: 15 * 60 * 1000,
     max: 100,
   },
+
+  supabase: {
+    url: process.env.SUPABASE_URL,
+    anonKey: process.env.SUPABASE_ANON_KEY,
+  },
 });
 
 function validateEnv() {

@@ -3,8 +3,10 @@
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import api, { type Ride, type PaginatedResponse } from "../../lib/api";
+import { useAuth } from "../../context/auth";
 import Input from "../../components/ui/input";
 import Button from "../../components/ui/button";
 import DatePicker from "../../components/ui/date-picker";
@@ -20,6 +22,9 @@ import {
   ChevronRight,
   Navigation,
   SlidersHorizontal,
+  Sparkles,
+  GraduationCap,
+  Users,
 } from "lucide-react";
 
 const sortOptions = [
@@ -38,8 +43,15 @@ const statusColors: Record<string, string> = {
   CANCELLED: "red",
 };
 
+const urgencyColors: Record<string, string> = {
+  Open: "mint",
+  "Almost Full": "yellow",
+  Full: "red",
+};
+
 function SearchContent() {
   const searchParams = useSearchParams();
+  const { user } = useAuth();
   const [fromCity, setFromCity] = useState(searchParams.get("fromCity") || "");
   const [toCity, setToCity] = useState(searchParams.get("toCity") || "");
   const [date, setDate] = useState(searchParams.get("date") || "");
@@ -48,12 +60,18 @@ function SearchContent() {
   const [result, setResult] = useState<PaginatedResponse<Ride> | null>(null);
   const [loading, setLoading] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
+  const [suggestions, setSuggestions] = useState<Ride[]>([]);
+  const [universityOnly, setUniversityOnly] = useState(false);
 
   useEffect(() => {
     setFromCity(searchParams.get("fromCity") || "");
     setToCity(searchParams.get("toCity") || "");
     setDate(searchParams.get("date") || "");
   }, [searchParams]);
+
+  useEffect(() => {
+    api.getSuggestions({}).then(setSuggestions).catch(() => {});
+  }, []);
 
   const search = useCallback(
     async (p = 1) => {
@@ -66,6 +84,7 @@ function SearchContent() {
           sortBy,
           page: String(p),
           limit: "12",
+          college: universityOnly && user?.college ? user.college : undefined,
         });
         setResult(data);
         setPage(p);
@@ -75,7 +94,7 @@ function SearchContent() {
         setLoading(false);
       }
     },
-    [fromCity, toCity, date, sortBy]
+    [fromCity, toCity, date, sortBy, universityOnly, user?.college]
   );
 
   useEffect(() => {
@@ -102,18 +121,86 @@ function SearchContent() {
         </p>
       </div>
 
+      {suggestions.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles size={14} className="text-accent-mint" />
+            <span className="text-[12px] font-bold text-text-tertiary uppercase tracking-wider">
+              Suggested for you
+            </span>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
+            {suggestions.map((ride) => (
+              <Link
+                key={ride.id}
+                href={`/dashboard/rides/${ride.id}`}
+                className="glass glass-hover rounded-2xl p-4 min-w-[260px] shrink-0 block"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-accent-mint" />
+                  <span className="text-[13px] text-text-primary font-semibold truncate">
+                    {ride.fromCity}
+                  </span>
+                  <span className="text-text-tertiary text-[11px]">to</span>
+                  <div className="w-1.5 h-1.5 rounded-full bg-accent-cyan" />
+                  <span className="text-[13px] text-text-primary font-semibold truncate">
+                    {ride.toCity}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock size={11} className="text-text-tertiary" />
+                    <span className="text-[11px] text-text-secondary">
+                      {formatTime(ride.departureTime)}
+                    </span>
+                  </div>
+                  <span className="text-[16px] font-black text-accent-mint">
+                    &#8377;{ride.pricePerSeat}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  {ride.urgencyLabel && (
+                    <Badge color={urgencyColors[ride.urgencyLabel] || "gray"}>
+                      {ride.urgencyLabel}
+                    </Badge>
+                  )}
+                  <span className="text-[10px] text-text-tertiary font-semibold">
+                    {ride.availableSeats} seat{ride.availableSeats !== 1 ? "s" : ""} left
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="glass-strong rounded-2xl p-4 mb-6">
-        <div className="flex items-center justify-between mb-3 md:hidden">
+        <div className="flex items-center justify-between mb-3">
           <span className="text-[12px] font-bold text-text-tertiary uppercase tracking-wider">
             Filters
           </span>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            title="Toggle filters"
-            className="p-1.5 rounded-lg hover:bg-white/5 text-text-tertiary cursor-pointer"
-          >
-            <SlidersHorizontal size={16} />
-          </button>
+          <div className="flex items-center gap-2">
+            {user?.college && (
+              <button
+                onClick={() => setUniversityOnly(!universityOnly)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold transition-colors cursor-pointer border ${
+                  universityOnly
+                    ? "bg-accent-cyan/15 border-accent-cyan/30 text-accent-cyan"
+                    : "bg-transparent border-border-subtle text-text-tertiary hover:border-text-tertiary"
+                }`}
+              >
+                <GraduationCap size={12} />
+                My University
+              </button>
+            )}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              title="Toggle filters"
+              className="p-1.5 rounded-lg hover:bg-white/5 text-text-tertiary cursor-pointer md:hidden"
+            >
+              <SlidersHorizontal size={16} />
+            </button>
+          </div>
         </div>
         <div className={`${showFilters ? "block" : "hidden md:block"}`}>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -171,18 +258,33 @@ function SearchContent() {
                   className="glass glass-hover rounded-2xl p-5 block group transition-shadow duration-300 hover:shadow-[0_0_40px_rgba(173,255,166,0.04)]"
                 >
                   <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2.5 mb-2">
-                        <div className="w-2 h-2 rounded-full bg-accent-mint" />
-                        <span className="text-[14px] text-text-primary font-semibold">
-                          {ride.fromCity}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-2 h-2 rounded-full bg-accent-cyan" />
-                        <span className="text-[14px] text-text-primary font-semibold">
-                          {ride.toCity}
-                        </span>
+                    <div className="flex items-center gap-3 flex-1">
+                      {ride.creator.avatarUrl ? (
+                        <Image
+                          src={ride.creator.avatarUrl}
+                          alt=""
+                          width={36}
+                          height={36}
+                          className="rounded-xl object-cover shrink-0"
+                        />
+                      ) : (
+                        <div className="w-9 h-9 rounded-xl bg-bg-surface flex items-center justify-center text-[11px] text-text-secondary font-bold shrink-0">
+                          {ride.creator.firstName[0]}{ride.creator.lastName?.[0]}
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2.5 mb-1.5">
+                          <div className="w-2 h-2 rounded-full bg-accent-mint" />
+                          <span className="text-[14px] text-text-primary font-semibold">
+                            {ride.fromCity}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-2 h-2 rounded-full bg-accent-cyan" />
+                          <span className="text-[14px] text-text-primary font-semibold">
+                            {ride.toCity}
+                          </span>
+                        </div>
                       </div>
                     </div>
                     <div className="text-right">
@@ -210,19 +312,24 @@ function SearchContent() {
                     </div>
                     {ride.creator.college && (
                       <div className="flex items-center gap-1.5">
-                        <MapPin size={12} className="text-text-tertiary" />
+                        <GraduationCap size={12} className="text-text-tertiary" />
                         <span className="text-[12px] text-text-secondary font-medium">
                           {ride.creator.college}
                         </span>
                       </div>
                     )}
                     <div className="ml-auto flex items-center gap-2">
-                      <Badge color={statusColors[ride.status]}>
-                        {ride.status}
-                      </Badge>
-                      <span className="text-[11px] text-text-tertiary font-semibold">
-                        {ride.availableSeats} left
-                      </span>
+                      {ride.urgencyLabel && (
+                        <Badge color={urgencyColors[ride.urgencyLabel] || "gray"}>
+                          {ride.urgencyLabel}
+                        </Badge>
+                      )}
+                      <div className="flex items-center gap-1">
+                        <Users size={11} className="text-text-tertiary" />
+                        <span className="text-[11px] text-text-tertiary font-semibold">
+                          {ride.availableSeats}/{ride.totalSeats}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </Link>

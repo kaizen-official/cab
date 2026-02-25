@@ -15,6 +15,13 @@ enum Gender {
   OTHER
 }
 
+enum VerificationStatus {
+  NOT_SUBMITTED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
   id              String   @id @default(auto()) @map("_id") @db.ObjectId
   email           String   @unique
@@ -25,10 +32,16 @@ model User {
   gender          Gender?
   avatarUrl       String?
   bio             String?
+  whatsappNumber  String?
   college         String?
-  collegeVerified Boolean  @default(false)
-  emailVerified   Boolean  @default(false)
-  isActive        Boolean  @default(true)
+  collegeVerified Boolean            @default(false)
+  program         String?
+  academicYear    String?
+  studentIdUrl    String?
+  studentIdStatus VerificationStatus @default(NOT_SUBMITTED)
+  whatsappVisible Boolean            @default(true)
+  emailVerified   Boolean            @default(false)
+  isActive        Boolean            @default(true)
   refreshToken    String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
