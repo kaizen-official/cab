@@ -17,6 +17,7 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {launchImageLibrary} from 'react-native-image-picker';
 import api, {UserProfile, ApiError} from '../../lib/api';
+import {uploadToSupabase} from '../../lib/supabase';
 import {useAuth} from '../../context/auth';
 import {colors, radii, fontSize, font, spacing, glass} from '../../lib/theme';
 import Input from '../../components/ui/Input';
@@ -147,16 +148,19 @@ export default function ProfileScreen({navigation}: Props) {
     setUploadingAvatar(true);
     setError('');
     try {
-      const data = await api.uploadAvatar(
+      const publicUrl = await uploadToSupabase(
+        'avatars',
         asset.uri,
         asset.fileName || 'avatar.jpg',
         asset.type || 'image/jpeg',
+        profile!.id,
       );
+      const data = await api.saveAvatarUrl(publicUrl);
       setProfile(prev => prev ? {...prev, avatarUrl: data.avatarUrl} : prev);
       setMessage('Profile picture updated');
       refreshUser();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to upload');
+      setError(err instanceof Error ? err.message : 'Failed to upload');
     } finally {
       setUploadingAvatar(false);
     }
@@ -170,17 +174,20 @@ export default function ProfileScreen({navigation}: Props) {
     setUploadingId(true);
     setError('');
     try {
-      const data = await api.uploadStudentId(
+      const publicUrl = await uploadToSupabase(
+        'student-ids',
         asset.uri,
         asset.fileName || 'student-id.jpg',
         asset.type || 'image/jpeg',
+        profile!.id,
       );
+      const data = await api.saveStudentIdUrl(publicUrl);
       setProfile(prev =>
         prev ? {...prev, studentIdUrl: data.studentIdUrl, studentIdStatus: data.studentIdStatus} : prev,
       );
       setMessage('Student ID uploaded for verification');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Failed to upload');
+      setError(err instanceof Error ? err.message : 'Failed to upload');
     } finally {
       setUploadingId(false);
     }

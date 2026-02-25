@@ -187,41 +187,14 @@ class ApiClient {
     return this.request<PublicProfile>(`/users/${id}`);
   }
 
-  // ── Uploads ──
+  // ── Uploads (URL saved via backend, file uploaded client-side to Supabase) ──
 
-  async uploadFile<T = unknown>(path: string, file: File): Promise<T> {
-    const token = this.getToken();
-    const form = new FormData();
-    form.append("file", file);
-
-    let res = await fetch(this.buildUrl(path), {
-      method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: form,
-    });
-
-    if (res.status === 401 && token) {
-      const refreshed = await this.tryRefresh();
-      if (refreshed) {
-        res = await fetch(this.buildUrl(path), {
-          method: "POST",
-          headers: { Authorization: `Bearer ${this.getToken()}` },
-          body: form,
-        });
-      }
-    }
-
-    const data = await res.json();
-    if (!res.ok) throw new ApiError(data.message || "Upload failed", res.status, data.errors);
-    return data.data as T;
+  saveAvatarUrl(url: string) {
+    return this.request<{ id: string; avatarUrl: string }>("/uploads/avatar", { method: "PATCH", body: { url } });
   }
 
-  uploadAvatar(file: File) {
-    return this.uploadFile<{ id: string; avatarUrl: string }>("/uploads/avatar", file);
-  }
-
-  uploadStudentId(file: File) {
-    return this.uploadFile<{ id: string; studentIdUrl: string; studentIdStatus: string }>("/uploads/student-id", file);
+  saveStudentIdUrl(url: string) {
+    return this.request<{ id: string; studentIdUrl: string; studentIdStatus: string }>("/uploads/student-id", { method: "PATCH", body: { url } });
   }
 
   // ── Rides ──

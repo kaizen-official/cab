@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import api, { type UserProfile, ApiError } from "../../lib/api";
+import { uploadToSupabase } from "../../lib/supabase";
 import { useAuth } from "../../context/auth";
 import Input from "../../components/ui/input";
 import Textarea from "../../components/ui/textarea";
@@ -157,12 +158,13 @@ export default function ProfilePage() {
     setUploadingAvatar(true);
     setError("");
     try {
-      const result = await api.uploadAvatar(file);
+      const publicUrl = await uploadToSupabase("avatars", file, profile!.id);
+      const result = await api.saveAvatarUrl(publicUrl);
       setProfile((prev) => prev ? { ...prev, avatarUrl: result.avatarUrl } : prev);
       setMessage("Profile picture updated");
       refreshUser();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to upload");
+      setError(err instanceof Error ? err.message : "Failed to upload");
     } finally {
       setUploadingAvatar(false);
       if (avatarInputRef.current) avatarInputRef.current.value = "";
@@ -175,11 +177,12 @@ export default function ProfilePage() {
     setUploadingId(true);
     setError("");
     try {
-      const result = await api.uploadStudentId(file);
+      const publicUrl = await uploadToSupabase("student-ids", file, profile!.id);
+      const result = await api.saveStudentIdUrl(publicUrl);
       setProfile((prev) => prev ? { ...prev, studentIdUrl: result.studentIdUrl, studentIdStatus: result.studentIdStatus } : prev);
       setMessage("Student ID uploaded for verification");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to upload");
+      setError(err instanceof Error ? err.message : "Failed to upload");
     } finally {
       setUploadingId(false);
       if (studentIdInputRef.current) studentIdInputRef.current.value = "";

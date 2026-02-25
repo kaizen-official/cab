@@ -225,51 +225,19 @@ class ApiClient {
     });
   }
 
-  // ── Uploads ──
+  // ── Uploads (URL saved via backend, file uploaded client-side to Supabase) ──
 
-  async uploadFile<T = unknown>(
-    path: string,
-    fileUri: string,
-    fileName: string,
-    mimeType: string,
-  ): Promise<T> {
-    const token = await this.getToken();
-    const form = new FormData();
-    form.append('file', {uri: fileUri, name: fileName, type: mimeType} as unknown as Blob);
-
-    let res = await fetch(this.buildUrl(path), {
-      method: 'POST',
-      headers: token ? {Authorization: `Bearer ${token}`} : {},
-      body: form,
+  saveAvatarUrl(url: string) {
+    return this.request<{id: string; avatarUrl: string}>('/uploads/avatar', {
+      method: 'PATCH',
+      body: {url},
     });
-
-    if (res.status === 401 && token) {
-      const refreshed = await this.tryRefresh();
-      if (refreshed) {
-        const newToken = await this.getToken();
-        res = await fetch(this.buildUrl(path), {
-          method: 'POST',
-          headers: {Authorization: `Bearer ${newToken}`},
-          body: form,
-        });
-      }
-    }
-
-    const data = await res.json();
-    if (!res.ok)
-      throw new ApiError(data.message || 'Upload failed', res.status, data.errors);
-    return data.data as T;
   }
 
-  uploadAvatar(fileUri: string, fileName: string, mimeType: string) {
-    return this.uploadFile<{id: string; avatarUrl: string}>(
-      '/uploads/avatar', fileUri, fileName, mimeType,
-    );
-  }
-
-  uploadStudentId(fileUri: string, fileName: string, mimeType: string) {
-    return this.uploadFile<{id: string; studentIdUrl: string; studentIdStatus: string}>(
-      '/uploads/student-id', fileUri, fileName, mimeType,
+  saveStudentIdUrl(url: string) {
+    return this.request<{id: string; studentIdUrl: string; studentIdStatus: string}>(
+      '/uploads/student-id',
+      {method: 'PATCH', body: {url}},
     );
   }
 
